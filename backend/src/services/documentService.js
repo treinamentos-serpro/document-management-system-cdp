@@ -2,8 +2,9 @@ const crypto = require('node:crypto');
 const createServiceError = require('./createServiceError');
 
 class DocumentService {
-  constructor(documentRepository) {
+  constructor(documentRepository, fileRepository) {
     this.documentRepository = documentRepository;
+    this.fileRepository = fileRepository;
   }
 
   createDocument(file, owner = 'default-user') {
@@ -15,18 +16,25 @@ class DocumentService {
       id: crypto.randomUUID(),
       originalName: file.originalname,
       storedName: file.filename,
-      storagePath: file.path,
       size: file.size,
       uploadedAt: new Date().toISOString(),
       owner: owner || 'default-user',
       mimeType: file.mimetype
     };
 
-    return this.documentRepository.save(document);
+    try {
+      return this.toPublicDocument(this.documentRepository.save(document));
+    } catch (error) {
+      this.fileRepository.remove(document.storedName);
+      throw error;
+    }
   }
 
   listDocuments() {
-    return this.documentRepository.findAll().map(({ storedName, storagePath, ...document }) => document);
+    return this.documentRepository.findAll().map((document) => this.toPublicDocument(document));
+  }
+  toPublicDocument({ id, originalName, size, uploadedAt, owner, mimeType }) {
+    return { id, originalName, size, uploadedAt, owner, mimeType };
   }
 }
 

@@ -12,12 +12,30 @@
 
 const express = require('express');
 const multer = require('multer');
-const documentRoutes = require('./routes/documentRoutes');
+const path = require('node:path');
+const DocumentRepository = require('./repositories/documentRepository');
+const FileRepository = require('./repositories/fileRepository');
+const DocumentService = require('./services/documentService');
+const DocumentDownloadService = require('./services/documentDownloadService');
+const DocumentController = require('./controllers/documentController');
+const { createDocumentRouter, createUploadMiddleware } = require('./routes/documentRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+const storageDirectory = path.resolve(__dirname, '../storage');
+const fileRepository = new FileRepository(storageDirectory);
+const documentRepository = new DocumentRepository();
+const documentService = new DocumentService(documentRepository, fileRepository);
+const documentDownloadService = new DocumentDownloadService(documentRepository, fileRepository);
+const documentController = new DocumentController(documentService, documentDownloadService);
+const upload = createUploadMiddleware(storageDirectory);
+const documentRoutes = createDocumentRouter({ upload, documentController });
+
+// Mantém as rotas antigas e expõe o contrato oficial com prefixo /api.
+app.use('/api', documentRoutes);
 app.use(documentRoutes);
 
 // Endpoint de verificação de saúde. As demais rotas (/upload, /documents,
@@ -31,8 +49,12 @@ app.use((error, req, res, next) => {
     return next(error);
   }
 
-  if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: 'Arquivo excede o limite permitido' });
+  if (error instanceof multer.MulterError) {
+    const statusCode = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    const message = error.code === 'LIMIT_FILE_SIZE'
+      ? 'Arquivo excede o limite permitido'
+      : 'Requisição de upload inválida';
+    return res.status(statusCode).json({ error: message });
   }
 
   const statusCode = error.statusCode || 500;

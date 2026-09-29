@@ -11,7 +11,8 @@ test('createDocument saves document metadata and applies the default owner', () 
       return document;
     }
   };
-  const service = new DocumentService(documentRepository);
+  const fileRepository = { remove() {} };
+  const service = new DocumentService(documentRepository, fileRepository);
 
   const document = service.createDocument({
     originalname: 'report.pdf',
@@ -21,11 +22,12 @@ test('createDocument saves document metadata and applies the default owner', () 
     mimetype: 'application/pdf'
   });
 
-  assert.strictEqual(document, savedDocument);
+  assert.notStrictEqual(document, savedDocument);
   assert.match(document.id, /^[0-9a-f-]{36}$/);
   assert.strictEqual(document.originalName, 'report.pdf');
-  assert.strictEqual(document.storedName, 'stored-report.pdf');
   assert.strictEqual(document.owner, 'default-user');
+  assert.strictEqual(savedDocument.storedName, 'stored-report.pdf');
+  assert.strictEqual('storedName' in document, false);
 });
 
 test('createDocument rejects a missing file with a client error', () => {
@@ -43,13 +45,20 @@ test('listDocuments omits storage implementation details', () => {
       id: 'document-id',
       originalName: 'report.pdf',
       storedName: 'stored-report.pdf',
-      storagePath: '/storage/stored-report.pdf'
+      size: 42,
+      uploadedAt: '2026-09-29T00:00:00.000Z',
+      owner: 'default-user',
+      mimeType: 'application/pdf'
     }]
   });
 
   assert.deepStrictEqual(service.listDocuments(), [{
     id: 'document-id',
-    originalName: 'report.pdf'
+    originalName: 'report.pdf',
+    size: 42,
+    uploadedAt: '2026-09-29T00:00:00.000Z',
+    owner: 'default-user',
+    mimeType: 'application/pdf'
   }]);
 });
 
