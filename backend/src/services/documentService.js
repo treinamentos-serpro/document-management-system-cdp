@@ -1,16 +1,14 @@
 const crypto = require('node:crypto');
+const createServiceError = require('./createServiceError');
 
 class DocumentService {
-  constructor(documentRepository, fileRepository) {
+  constructor(documentRepository) {
     this.documentRepository = documentRepository;
-    this.fileRepository = fileRepository;
   }
 
   createDocument(file, owner = 'default-user') {
     if (!file) {
-      const error = new Error('Arquivo é obrigatório');
-      error.statusCode = 400;
-      throw error;
+      throw createServiceError('Arquivo é obrigatório', 400);
     }
 
     const document = {
@@ -29,27 +27,6 @@ class DocumentService {
 
   listDocuments() {
     return this.documentRepository.findAll().map(({ storedName, storagePath, ...document }) => document);
-  }
-
-  getDocumentDownload(id) {
-    if (!id) {
-      const error = new Error('Identificador do documento é obrigatório');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    const document = this.documentRepository.findById(id);
-
-    if (!document || !this.fileRepository.exists(document.storedName)) {
-      const error = new Error('Documento não encontrado');
-      error.statusCode = 404;
-      throw error;
-    }
-
-    return {
-      document,
-      filePath: this.fileRepository.getFilePath(document.storedName)
-    };
   }
 }
 

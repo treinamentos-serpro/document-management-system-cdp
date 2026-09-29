@@ -5,13 +5,15 @@ const crypto = require('node:crypto');
 const DocumentRepository = require('../repositories/documentRepository');
 const FileRepository = require('../repositories/fileRepository');
 const DocumentService = require('../services/documentService');
+const DocumentDownloadService = require('../services/documentDownloadService');
 const DocumentController = require('../controllers/documentController');
 
 const storageDirectory = path.resolve(__dirname, '../../storage');
 const fileRepository = new FileRepository(storageDirectory);
 const documentRepository = new DocumentRepository();
-const documentService = new DocumentService(documentRepository, fileRepository);
-const documentController = new DocumentController(documentService);
+const documentService = new DocumentService(documentRepository);
+const documentDownloadService = new DocumentDownloadService(documentRepository, fileRepository);
+const documentController = new DocumentController(documentService, documentDownloadService);
 
 const storage = multer.diskStorage({
   destination: storageDirectory,
