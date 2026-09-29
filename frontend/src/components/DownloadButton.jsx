@@ -19,11 +19,15 @@ export default function DownloadButton({ document }) {
   }
 
   return (
-    <span>
-      <button type="button" onClick={handleDownload} disabled={isDownloading}>
+    <div className="download-wrap">
+      <button className="secondary-button" type="button" onClick={handleDownload} disabled={isDownloading}>
         {isDownloading ? 'Baixando...' : 'Baixar'}
       </button>
-      {error && <span role="alert"> {error}</span>}
-    </span>
+      {error && (
+        <span className="form-message form-message--error" role="alert">
+          {error}
+        </span>
+      )}
+    </div>
   );
 }
