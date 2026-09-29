@@ -1,6 +1,7 @@
 class DocumentController {
-  constructor(documentService) {
+  constructor(documentService, documentDownloadService) {
     this.documentService = documentService;
+    this.documentDownloadService = documentDownloadService;
 
     this.upload = this.upload.bind(this);
     this.list = this.list.bind(this);
@@ -26,7 +27,7 @@ class DocumentController {
 
   download(req, res, next) {
     try {
-      const { document, filePath } = this.documentService.getDocumentDownload(req.params.id);
+      const { document, filePath } = this.documentDownloadService.getDocumentDownload(req.params.id);
       res.download(filePath, document.originalName, (error) => {
         if (error && !res.headersSent) {
           next(error);

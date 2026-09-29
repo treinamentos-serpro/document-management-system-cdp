@@ -16,6 +16,7 @@ const path = require('node:path');
 const DocumentRepository = require('./repositories/documentRepository');
 const FileRepository = require('./repositories/fileRepository');
 const DocumentService = require('./services/documentService');
+const DocumentDownloadService = require('./services/documentDownloadService');
 const DocumentController = require('./controllers/documentController');
 const { createDocumentRouter, createUploadMiddleware } = require('./routes/documentRoutes');
 
@@ -28,7 +29,8 @@ const storageDirectory = path.resolve(__dirname, '../storage');
 const fileRepository = new FileRepository(storageDirectory);
 const documentRepository = new DocumentRepository();
 const documentService = new DocumentService(documentRepository, fileRepository);
-const documentController = new DocumentController(documentService);
+const documentDownloadService = new DocumentDownloadService(documentRepository, fileRepository);
+const documentController = new DocumentController(documentService, documentDownloadService);
 const upload = createUploadMiddleware(storageDirectory);
 const documentRoutes = createDocumentRouter({ upload, documentController });
 
