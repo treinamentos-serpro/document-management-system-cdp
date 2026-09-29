@@ -2,36 +2,62 @@ const express = require('express');
 const multer = require('multer');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const DocumentRepository = require('../repositories/documentRepository');
-const FileRepository = require('../repositories/fileRepository');
-const DocumentService = require('../services/documentService');
-const DocumentController = require('../controllers/documentController');
 
-const storageDirectory = path.resolve(__dirname, '../../storage');
-const fileRepository = new FileRepository(storageDirectory);
-const documentRepository = new DocumentRepository();
-const documentService = new DocumentService(documentRepository, fileRepository);
-const documentController = new DocumentController(documentService);
+const defaultMaxFileSize = 10 * 1024 * 1024;
+const blockedExtensions = new Set([
+  '.bat', '.cmd', '.com', '.dll', '.exe', '.jks', '.jar', '.js', '.mjs',
+  '.pem', '.ps1', '.sh', '.so'
+]);
 
-const storage = multer.diskStorage({
-  destination: storageDirectory,
-  filename: (req, file, callback) => {
-    const extension = path.extname(file.originalname);
-    callback(null, `${crypto.randomUUID()}${extension}`);
+function getMaxFileSize() {
+  const configuredValue = process.env.MAX_FILE_SIZE;
+
+  if (configuredValue === undefined) {
+    return defaultMaxFileSize;
   }
-});
 
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: Number(process.env.MAX_FILE_SIZE || 10 * 1024 * 1024)
+  const maxFileSize = Number(configuredValue);
+
+  if (!Number.isSafeInteger(maxFileSize) || maxFileSize <= 0) {
+    throw new Error('MAX_FILE_SIZE deve ser um inteiro positivo');
   }
-});
 
-const router = express.Router();
+  return maxFileSize;
+}
 
-router.post('/upload', upload.single('file'), documentController.upload);
-router.get('/documents', documentController.list);
-router.get('/documents/:id/download', documentController.download);
+function createUploadMiddleware(storageDirectory) {
+  const storage = multer.diskStorage({
+    destination: storageDirectory,
+    filename: (req, file, callback) => {
+      callback(null, crypto.randomUUID());
+    }
+  });
 
-module.exports = router;
+  return multer({
+    storage,
+    fileFilter: (req, file, callback) => {
+      const extension = path.extname(file.originalname).toLowerCase();
+
+      if (blockedExtensions.has(extension)) {
+        const error = new Error('Tipo de arquivo não permitido');
+        error.statusCode = 400;
+        return callback(error);
+      }
+
+      return callback(null, true);
+    },
+    limits: { fileSize: getMaxFileSize() }
+  });
+}
+
+function createDocumentRouter({ upload, documentController }) {
+  const router = express.Router();
+
+  router.post('/upload', upload.single('file'), documentController.upload);
+  router.get('/documents', documentController.list);
+  router.get('/documents/:id/download', documentController.download);
+
+  return router;
+}
+
+module.exports = { createDocumentRouter, createUploadMiddleware };
