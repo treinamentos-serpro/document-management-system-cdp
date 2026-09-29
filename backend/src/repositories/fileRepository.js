@@ -8,6 +8,12 @@ class FileRepository {
   }
 
   getFilePath(storedName) {
+    if (!storedName || path.basename(storedName) !== storedName) {
+      const error = new Error('Caminho de arquivo inválido');
+      error.statusCode = 400;
+      throw error;
+    }
+
     const filePath = path.resolve(this.storageDirectory, storedName);
     const relativePath = path.relative(this.storageDirectory, filePath);
 
@@ -21,7 +27,27 @@ class FileRepository {
   }
 
   exists(storedName) {
-    return fs.existsSync(this.getFilePath(storedName));
+    try {
+      const filePath = this.getFilePath(storedName);
+      const fileStats = fs.lstatSync(filePath);
+      return fileStats.isFile();
+    } catch (error) {
+      if (error.code === 'ENOENT' || error.code === 'EINVAL') {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
+  remove(storedName) {
+    try {
+      fs.unlinkSync(this.getFilePath(storedName));
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    }
   }
 }
 

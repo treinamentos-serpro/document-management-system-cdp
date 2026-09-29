@@ -17,18 +17,22 @@ class DocumentService {
       id: crypto.randomUUID(),
       originalName: file.originalname,
       storedName: file.filename,
-      storagePath: file.path,
       size: file.size,
       uploadedAt: new Date().toISOString(),
       owner: owner || 'default-user',
       mimeType: file.mimetype
     };
 
-    return this.documentRepository.save(document);
+    try {
+      return this.toPublicDocument(this.documentRepository.save(document));
+    } catch (error) {
+      this.fileRepository.remove(document.storedName);
+      throw error;
+    }
   }
 
   listDocuments() {
-    return this.documentRepository.findAll().map(({ storedName, storagePath, ...document }) => document);
+    return this.documentRepository.findAll().map((document) => this.toPublicDocument(document));
   }
 
   getDocumentDownload(id) {
@@ -47,9 +51,13 @@ class DocumentService {
     }
 
     return {
-      document,
+      document: this.toPublicDocument(document),
       filePath: this.fileRepository.getFilePath(document.storedName)
     };
+  }
+
+  toPublicDocument({ id, originalName, size, uploadedAt, owner, mimeType }) {
+    return { id, originalName, size, uploadedAt, owner, mimeType };
   }
 }
 
